@@ -66,6 +66,7 @@ uvicorn main:app --reload
 ```
 
 ### Frontend Setup
+open a new terminal and follow the steps bellow 
 
 1. Install dependencies:
 ```bash
