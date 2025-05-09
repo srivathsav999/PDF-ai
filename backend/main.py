@@ -97,9 +97,28 @@ async def upload_pdf(file: UploadFile = File(...)):
 
         # Handle duplicate filenames
         counter = 1
-        while os.path.exists(file_path):
-            file_path = os.path.join(UPLOAD_DIR, f"{base}_{counter}{extension}")
-            counter += 1
+        final_filename = file.filename
+        
+        async with SessionLocal() as session:
+            while True:
+                # Check filesystem
+                if os.path.exists(file_path):
+                    final_filename = f"{base}_{counter}{extension}"
+                    file_path = os.path.join(UPLOAD_DIR, final_filename)
+                    counter += 1
+                    continue
+                
+                # Check database
+                result = await session.execute(
+                    select(Document).filter(Document.filename == final_filename)
+                )
+                if result.scalars().first() is not None:
+                    final_filename = f"{base}_{counter}{extension}"
+                    file_path = os.path.join(UPLOAD_DIR, final_filename)
+                    counter += 1
+                    continue
+                    
+                break  # Found a unique filename
 
         # Save file
         try:
@@ -124,7 +143,7 @@ async def upload_pdf(file: UploadFile = File(...)):
         try:
             async with SessionLocal() as session:
                 doc = Document(
-                    filename=os.path.basename(file_path),
+                    filename=final_filename,
                     content=extracted_text
                 )
                 session.add(doc)
@@ -135,10 +154,10 @@ async def upload_pdf(file: UploadFile = File(...)):
             os.remove(file_path)
             raise HTTPException(status_code=500, detail="Failed to save document to database")
 
-        logger.info(f"Successfully processed file: {file.filename}")
+        logger.info(f"Successfully processed file: {final_filename}")
         return {
             "message": "File uploaded and processed successfully",
-            "filename": os.path.basename(file_path),
+            "filename": final_filename,
             "size": file_size,
             "text_length": len(extracted_text)
         }
@@ -203,7 +222,6 @@ async def ask_endpoint(q: Question):
                         status_code=500,
                         detail="Failed to process question with QA engine"
                     )
-
             except SQLAlchemyError as e:
                 logger.error(f"Database error in ask endpoint: {str(e)}")
                 raise HTTPException(
