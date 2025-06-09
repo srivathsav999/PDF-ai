@@ -1,4 +1,4 @@
-# ai-planet-assignment
+# PDF-ai
 
 A modern web application that allows users to upload PDF documents and ask questions about their content using AI-powered analysis. The application features a React frontend and FastAPI backend with real-time question answering capabilities.
 
